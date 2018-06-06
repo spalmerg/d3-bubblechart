@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body {
+    font: 10px sans-serif;
+}
+
+.axis path,.axis line {
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
+}
+
+.dot {
+    stroke: #000;
+}
+
+.grid line {
+    stroke: lightgrey;
+    stroke-opacity: 0.7;
+    shape-rendering: crispEdges;
+}
+
+.grid path {
+    stroke-width: 0;
+}
+
+.title {
+    font: 20px sans-serif;
+    font-weight: 300;
+}
+
+.axis {
+    font: 12px sans-serif;
+    font-weight: 300;
+}
+
+.legendSequential, .legendSize{
+    font:12px sans-serif;
+    font-weight: 300;
+}
+
+.legendSize circle{
+    fill: None;
+    stroke:grey;
+    fill: lightgrey;
+}
+
+div.tooltip {
+    position: absolute;
+    text-align: center;
+    width: 120px;
+    height: 100px;
+    padding: 2px;
+    font: 11px sans-serif;
+    background: lightgrey;
+    border: 0px;
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+</style>
+<body>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+<script src="legend.js"></script>
+<script>
+
+var margin = {top: 50, right: 110, bottom: 50, left: 70},
+    width = 1280 - margin.left - margin.right,
+    height = 700 - margin.top - margin.bottom;
+
+var x = d3.scaleLinear()
+    .range([0, width]);
+
+var y = d3.scaleLinear()
+    .range([height, 0]);
+
+var r = d3.scaleLinear()
+    .range([5,25])
+
+var color = d3.scaleSequential(d3.interpolatePuOr)
+
+var xAxis = d3.axisBottom(x)
+    .tickFormat(d => d + "%")
+
+var yAxis = d3.axisLeft(y)
+    .tickFormat(d => d + "%")
+
+var div = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+
+var format = d3.format(".2s")
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
+
+d3.csv("states.csv", function(error, data) {
+    if (error) throw error;
+    data.forEach(function(d) {
+        d["2018 Population"] = +d["2018 Population"]
+        d["2018 Growth"] = +d["2018 Growth"].slice(0, -1)
+        d["Poverty Rate"] = +d["Poverty Rate"].slice(0, -1)
+        d["Property Tax"] = +d["Property Tax"].slice(0, -1)
+        d["Income Tax"] = +d["Income Tax"].slice(0, -1)
+        d["Sales Tax"] = +d["Sales Tax"].slice(0, -1)
+        d["Tax"] = d["Property Tax"] + d["Income Tax"] + d["Sales Tax"]
+    });
+
+    //sort data so smaller bubbles aren't blocked by bigger bubbles
+    data.sort(function(a,b) {return d3.descending(a["2018 Population"],b["2018 Population"]);});
+
+    x.domain(d3.extent(data, function(d) { return d["Poverty Rate"]; })).nice();
+    y.domain(d3.extent(data, function(d) { return d["Tax"]; })).nice();
+    r.domain(d3.extent(data, function(d){ return d["2018 Population"]})).nice();
+    color.domain(d3.extent(data, function(d){ return d["2018 Growth"]})).nice()
+
+    //gridlines
+    function make_x_gridlines() {   
+        return d3.axisBottom(x)
+        .ticks(10) }
+    function make_y_gridlines() {   
+        return d3.axisLeft(y)
+            .ticks(10) }
+    svg.append("g")     
+        .attr("class", "grid")
+        .attr("transform", "translate(0," + height + ")")
+        .call(make_x_gridlines()
+            .tickSize(-height)
+            .tickFormat(""))
+
+    // add the Y gridlines
+    svg.append("g")     
+        .attr("class", "grid")
+        .call(make_y_gridlines()
+            .tickSize(-width)
+            .tickFormat("") )
+
+    svg.append("g")
+        .attr("class", "axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis)
+    .append("text")
+        .attr("x", 1075)
+        .attr("y", 35)
+        .attr("fill", "#000")
+        .text("Poverty Rate");
+
+    svg.append("g")
+        .attr("class", "axis")
+        .call(yAxis)
+    .append("text")
+        .attr("x", -50)
+        .attr("y", -10)
+        .attr("fill", "#000")
+        .attr("text-anchor", "start")
+        .text("Total Tax Rate");
+
+    svg.selectAll(".dot")
+        .data(data)
+        .enter().append("circle")
+        .attr("class", "dot")
+        .attr("r", function(d){
+            return r(d["2018 Population"]); })
+        .attr("cx", function(d) { return x(d["Poverty Rate"]); })
+        .attr("cy", function(d) { return y(d.Tax); })
+        .style("opacity", .9)
+        .style("stroke", "black")
+        .style("stroke-opacity", .3)
+        .style("fill", function(d) { 
+            return color(d["2018 Growth"]); })
+        .on("mouseover", function(d) {
+            div.transition()
+                .duration(200)
+                .style("opacity", .9);
+            div.html(d["State"] + "<br/>" 
+                + "2018 Population: " + format(d["2018 Population"]) + "<br/>"
+                + "2018 Growth: " + d["2018 Growth"] + "%" + "<br/>"
+                + "Poverty Rate: " + d["2018 Growth"] + "%" + "<br/>"
+                + "Property Tax: " + d["Property Tax"] + "%" + "<br/>"
+                + "Income Tax: " + d["Income Tax"] + "%" + "<br/>"
+                + "Sales Tax: " + d["Sales Tax"] + "%")
+                .style("left", x(d["Poverty Rate"]) + 10 + "px")
+                .style("top", y(d.Tax)+10 + "px");
+           })
+        .on("mouseout", function(d) {
+            div.transition()
+            .duration(500)
+            .style("opacity", 0);
+           });;
+
+    //first color legend
+    svg.append("g")
+        .attr("class", "legendSequential")
+        .attr("transform", "translate(1115,20)");
+
+    var legendSequential = d3.legendColor()
+        .shapeWidth(25)
+        .cells(6)
+        .orient("vertical")
+        .scale(color)
+        .title("2018 Population Growth")
+        .titleWidth(100)
+
+    svg.select(".legendSequential")
+        .call(legendSequential);
+
+    //second size legend
+    svg.append("g")
+        .attr("class", "legendSize")
+        .attr("transform", "translate(1115, 200)");
+
+    var legendSize = d3.legendSize()
+        .scale(r)
+        .shape('circle')
+        .shapePadding(10)
+        .labelOffset(5)
+        .orient('vertical')
+        .title("Population")
+        .labelFormat(d3.format(".1s"));
+
+    svg.select(".legendSize")
+        .call(legendSize);
+
+    // title
+    svg.append("text")
+        .attr("class", "title")
+        .attr("x", (width / 2))             
+        .attr("y", 0 - (margin.top / 3))
+        .attr("text-anchor", "middle")  
+        .text("U.S. Poverty Rate vs. Total Tax Rate");
+
+});
+
+</script>
