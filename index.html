@@ -77,7 +77,7 @@ var x = d3.scaleLinear()
 var y = d3.scaleLinear()
     .range([height, 0]);
 
-var r = d3.scaleLinear()
+var r = d3.scaleSqrt()
     .range([5,25])
 
 var color = d3.scaleSequential(d3.interpolatePuOr)
@@ -99,8 +99,6 @@ var svg = d3.select("body").append("svg")
     .attr("height", height + margin.top + margin.bottom)
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-
 
 d3.csv("states.csv", function(error, data) {
     if (error) throw error;
